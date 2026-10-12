@@ -1,0 +1,16 @@
+services:
+  zhiji:
+    build: .
+    container_name: zhiji-server
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./data:/app/data          # SQLite 数据库
+      - ./uploads:/app/uploads    # 图片文件
+    environment:
+      # 二期接 AI 时填（OpenAI 兼容格式）
+      # AI_BASE_URL: https://open.bigmodel.cn/api/paas/v4
+      # AI_API_KEY: your-key
+      # AI_MODEL: glm-4-flash
+      - TZ=Asia/Shanghai
