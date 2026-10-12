@@ -31,6 +31,9 @@ interface EntryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: EntryEntity)
 
+    @Query("DELETE FROM entries WHERE clientId = :clientId")
+    suspend fun deleteByClientId(clientId: String)
+
     @Query("SELECT * FROM entries WHERE clientId = :clientId")
     suspend fun byClientId(clientId: String): EntryEntity?
 

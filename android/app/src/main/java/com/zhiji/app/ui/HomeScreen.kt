@@ -301,7 +301,7 @@ fun EntryCardMobile(e: EntryEntity, onEdit: () -> Unit, onShare: () -> Unit, onD
 private fun EntryBody(e: EntryEntity) {
     when (e.type) {
         C.TYPE_MOOD -> {
-            val m = remember { runCatching { C.decode<MoodContent>(e.contentJson) }.getOrNull() } ?: return
+            val m = remember(e.clientId, e.updatedAt) { runCatching { C.decode<MoodContent>(e.contentJson) }.getOrNull() } ?: return
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(MoodEmojis.getOrElse(m.score - 1) { "😐" }, fontSize = 30.sp)
                 Spacer(Modifier.width(12.dp))
@@ -319,7 +319,7 @@ private fun EntryBody(e: EntryEntity) {
             }
         }
         C.TYPE_TEXT -> {
-            val t = remember { runCatching { C.decode<TextContent>(e.contentJson) }.getOrNull() } ?: return
+            val t = remember(e.clientId, e.updatedAt) { runCatching { C.decode<TextContent>(e.contentJson) }.getOrNull() } ?: return
             t.title?.let {
                 Text(it, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(3.dp))
@@ -327,7 +327,7 @@ private fun EntryBody(e: EntryEntity) {
             Text(t.body ?: "", fontSize = 14.sp, lineHeight = 21.sp)
         }
         C.TYPE_PHOTO -> {
-            val p = remember { runCatching { C.decode<PhotoContent>(e.contentJson) }.getOrNull() } ?: return
+            val p = remember(e.clientId, e.updatedAt) { runCatching { C.decode<PhotoContent>(e.contentJson) }.getOrNull() } ?: return
             val repo = Repo.get(LocalContext.current)
             if (p.imageIds.isNotEmpty() && repo.api.configured) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -350,11 +350,11 @@ private fun EntryBody(e: EntryEntity) {
             }
         }
         C.TYPE_HABIT -> {
-            val h = remember { runCatching { C.decode<HabitCheckinContent>(e.contentJson) }.getOrNull() } ?: return
+            val h = remember(e.clientId, e.updatedAt) { runCatching { C.decode<HabitCheckinContent>(e.contentJson) }.getOrNull() } ?: return
             Text("✅ 完成打卡 · ${h.habitName ?: "习惯"}", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = AccentDark)
         }
         C.TYPE_HEALTH -> {
-            val h = remember { runCatching { C.decode<HealthContent>(e.contentJson) }.getOrNull() } ?: return
+            val h = remember(e.clientId, e.updatedAt) { runCatching { C.decode<HealthContent>(e.contentJson) }.getOrNull() } ?: return
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 h.sleepHours?.let { HealthCell("😴 ${it}", "睡眠(小时)") }
                 h.weightKg?.let { HealthCell("⚖️ ${it}", "体重(kg)") }
@@ -362,7 +362,7 @@ private fun EntryBody(e: EntryEntity) {
             }
         }
         C.TYPE_DREAM -> {
-            val d = remember { runCatching { C.decode<DreamContent>(e.contentJson) }.getOrNull() } ?: return
+            val d = remember(e.clientId, e.updatedAt) { runCatching { C.decode<DreamContent>(e.contentJson) }.getOrNull() } ?: return
             if (d.body.isNotBlank()) {
                 Text(d.body, fontSize = 14.sp, lineHeight = 21.sp)
             }

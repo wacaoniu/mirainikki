@@ -2,6 +2,7 @@ package com.zhiji.app.data
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -61,17 +62,20 @@ class Repo(private val ctx: Context) {
 
     suspend fun deleteEntry(clientId: String) = entryDao.softDelete(clientId, nowISO())
 
-    /** 编辑已有记录：更新内容并置脏，同步时以新时间戳覆盖服务端（LWW） */
+    /** 编辑已有记录：更新内容并置脏，同步时以新时间戳覆盖服务端（LWW）。
+     *  先 DELETE 再 INSERT（同事务）：确保 Room 的 Flow 感知到变化立即刷新 UI。 */
     suspend fun updateEntry(e: EntryEntity, contentJson: String, tags: List<String>, entryDate: String) {
-        entryDao.upsert(
-            e.copy(
-                contentJson = contentJson,
-                tagsJson = C.tags(*tags.toTypedArray()),
-                entryDate = entryDate,
-                updatedAt = nowISO(),
-                dirty = true,
-            )
+        val updated = e.copy(
+            contentJson = contentJson,
+            tagsJson = C.tags(*tags.toTypedArray()),
+            entryDate = entryDate,
+            updatedAt = nowISO(),
+            dirty = true,
         )
+        db.withTransaction {
+            entryDao.deleteByClientId(e.clientId)
+            entryDao.upsert(updated)
+        }
     }
 
     suspend fun todayCheckinDates(): Set<String> = checkinDatesOn(todayLocal())
