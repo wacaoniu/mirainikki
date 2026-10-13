@@ -1,5 +1,7 @@
 package com.zhiji.app.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,7 +52,30 @@ fun SettingsScreen() {
     var msg by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var syncing by remember { mutableStateOf(false) }
+    var importing by remember { mutableStateOf(false) }
+    var importResult by remember { mutableStateOf<Pair<List<com.zhiji.app.data.LegacyImport.Parsed>, List<String>>?>(null) }
     val configured = repo.api.configured
+
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        importing = true; importResult = null
+        scope.launch(Dispatchers.IO) {
+            try {
+                val text = ctx.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.readText()
+                    ?: throw Exception("无法读取文件")
+                val (parsed, unparsed) = com.zhiji.app.data.LegacyImport.parse(text, com.zhiji.app.data.todayLocal())
+                for (p in parsed) {
+                    val hashTags = Regex("#([\\w\\u4e00-\\u9fa5-]+)").findAll(p.body).map { it.groupValues[1] }.toList()
+                    repo.addText(null, p.body, hashTags, p.entryDate)
+                }
+                withContext(Dispatchers.Main) { importResult = parsed to unparsed }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { importResult = emptyList<com.zhiji.app.data.LegacyImport.Parsed>() to listOf(e.message ?: "读取失败") }
+            } finally {
+                withContext(Dispatchers.Main) { importing = false }
+            }
+        }
+    }
 
     Column(
         Modifier
@@ -138,6 +163,42 @@ fun SettingsScreen() {
                 if (msg.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
                     Text(msg, fontSize = 13.sp, color = if (msg.startsWith("✗")) Danger else AccentDark)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // 导入旧日记（低频功能：本地解析入 Room，联网后随同步上传）
+        Card(
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("📥 导入旧日记", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "把别处记的日记搬进来：选择 .md / .txt / .json 文件，" +
+                        "按日期行（如 # 2026-01-15 或 2026年1月15日）自动分天导入。\n导入到手机本地，联网后自动同步。",
+                    fontSize = 13.sp, color = Ink2, lineHeight = 20.sp,
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = { filePicker.launch(arrayOf("text/*", "application/json", "application/octet-stream")) }) {
+                    Text(if (importResult == null) "选择文件并导入" else "再导一个")
+                }
+                if (importing) {
+                    Spacer(Modifier.height(6.dp))
+                    Text("解析导入中…", fontSize = 13.sp, color = Ink3)
+                }
+                importResult?.let { r ->
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (r.second.isEmpty()) "✓ 导入 ${r.first.size} 条（${r.first.minOfOrNull { it.entryDate }} ~ ${r.first.maxOfOrNull { it.entryDate }}）"
+                        else "✓ 导入 ${r.first.size} 条，${r.second.size} 段无法识别（无日期行）",
+                        fontSize = 13.sp, color = AccentDark,
+                    )
                 }
             }
         }

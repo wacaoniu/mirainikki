@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { fetchProfile, api } from '../api';
+import ImportDialog from '../components/ImportDialog';
 
 export default function Profile() {
   const [days, setDays] = useState(90);
   const [md, setMd] = useState('');
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
+  const [showImport, setShowImport] = useState(false);
 
   const generate = async () => {
     setBusy(true);
@@ -61,6 +63,7 @@ export default function Profile() {
           </>
         )}
         <span style={{ flex: 1 }} />
+        <button className="btn ghost" onClick={() => setShowImport(true)} title="把别处记的旧日记批量导入">📥 导入旧日记</button>
         <button className="btn ghost" onClick={downloadFull} title="下载全部记录的 JSON 备份">📦 全量备份</button>
       </div>
 
@@ -71,6 +74,13 @@ export default function Profile() {
 
       {md ? <div className="profile-md">{md}</div> : (
         <div className="empty-tip"><div className="e">🤖</div>点击「生成记忆档案」，喂给任何 AI 让它更懂你</div>
+      )}
+
+      {showImport && (
+        <ImportDialog
+          onClose={() => setShowImport(false)}
+          onDone={() => { setShowImport(false); setToast('导入完成'); setTimeout(() => setToast(''), 2000); }}
+        />
       )}
 
       {toast && <div className="toast">{toast}</div>}

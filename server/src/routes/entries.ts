@@ -165,6 +165,32 @@ export function registerEntries(app: FastifyInstance) {
     const rows = db.prepare(`SELECT DISTINCT entry_date FROM entries WHERE ${where.join(' AND ')} ORDER BY entry_date DESC`).all(...params) as any[];
     return rows.map((r) => r.entry_date);
   });
+
+  /**
+   * 批量导入旧日记（一次性迁移用，低频）。
+   * body: { entries: [{ entryDate:'YYYY-MM-DD', type, content, tags? }] }
+   * 逐条校验：合法的入库，非法的跳过并返回原因，整体失败不影响已导入项。
+   */
+  app.post('/api/import', async (req, reply) => {
+    const list = (req.body as any)?.entries;
+    if (!Array.isArray(list) || !list.length) return reply.code(400).send({ error: 'entries 需为非空数组' });
+    let imported = 0;
+    const errors: string[] = [];
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      const label = `第 ${i + 1} 条`;
+      try {
+        if (!isValidDate(e?.entryDate)) throw new Error('entryDate 缺失或格式不对（需 YYYY-MM-DD）');
+        const type = e?.type || 'text';
+        upsertEntry({ clientId: uuid(), type, content: e.content, tags: e.tags || [], entryDate: e.entryDate });
+        imported++;
+      } catch (err: any) {
+        errors.push(`${label}: ${err.message}`);
+        if (errors.length >= 20) { errors.push('…错误过多，仅显示前 20 条'); break; }
+      }
+    }
+    return { imported, failed: list.length - imported, errors };
+  });
 }
 
 function parseEntryBody(b: any): { ok: true; entryDate: string } | { ok: false; error: string } {
