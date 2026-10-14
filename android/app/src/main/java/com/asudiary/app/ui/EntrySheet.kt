@@ -1,4 +1,4 @@
-package com.zhiji.app.ui
+package com.asudiary.app.ui
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -47,15 +47,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zhiji.app.data.C
-import com.zhiji.app.data.todayLocal
-import com.zhiji.app.data.DreamContent
-import com.zhiji.app.data.EntryEntity
-import com.zhiji.app.data.HealthContent
-import com.zhiji.app.data.MoodContent
-import com.zhiji.app.data.PhotoContent
-import com.zhiji.app.data.Repo
-import com.zhiji.app.data.TextContent
+import com.asudiary.app.data.C
+import com.asudiary.app.data.todayLocal
+import com.asudiary.app.data.DreamContent
+import com.asudiary.app.data.EntryEntity
+import com.asudiary.app.data.HealthContent
+import com.asudiary.app.data.MoodContent
+import com.asudiary.app.data.PhotoContent
+import com.asudiary.app.data.Repo
+import com.asudiary.app.data.TextContent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

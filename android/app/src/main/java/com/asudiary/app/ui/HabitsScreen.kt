@@ -1,4 +1,4 @@
-package com.zhiji.app.ui
+package com.asudiary.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,8 +42,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zhiji.app.data.HabitEntity
-import com.zhiji.app.data.Repo
+import com.asudiary.app.data.HabitEntity
+import com.asudiary.app.data.Repo
 import kotlinx.coroutines.launch
 
 /** 习惯页：今日一键打卡 + 管理 */

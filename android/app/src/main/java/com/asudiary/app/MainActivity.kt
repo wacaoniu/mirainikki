@@ -1,4 +1,4 @@
-package com.zhiji.app
+package com.asudiary.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -21,12 +21,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.zhiji.app.data.Repo
-import com.zhiji.app.data.SyncWorker
-import com.zhiji.app.ui.HabitsScreen
-import com.zhiji.app.ui.HomeScreen
-import com.zhiji.app.ui.SettingsScreen
-import com.zhiji.app.ui.ShadoujiTheme
+import com.asudiary.app.data.Repo
+import com.asudiary.app.data.SyncWorker
+import com.asudiary.app.ui.HabitsScreen
+import com.asudiary.app.ui.HomeScreen
+import com.asudiary.app.ui.SettingsScreen
+import com.asudiary.app.ui.ShadoujiTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {

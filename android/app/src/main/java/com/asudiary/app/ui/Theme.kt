@@ -1,4 +1,4 @@
-package com.zhiji.app.ui
+package com.asudiary.app.ui
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

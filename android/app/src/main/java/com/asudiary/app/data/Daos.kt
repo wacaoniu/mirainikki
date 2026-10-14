@@ -1,4 +1,4 @@
-package com.zhiji.app.data
+package com.asudiary.app.data
 
 import androidx.room.Dao
 import androidx.room.Database

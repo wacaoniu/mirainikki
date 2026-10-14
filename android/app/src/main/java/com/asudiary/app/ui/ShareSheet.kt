@@ -1,4 +1,4 @@
-package com.zhiji.app.ui
+package com.asudiary.app.ui
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -38,15 +38,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
-import com.zhiji.app.data.C
-import com.zhiji.app.data.DreamContent
-import com.zhiji.app.data.EntryEntity
-import com.zhiji.app.data.HealthContent
-import com.zhiji.app.data.HabitCheckinContent
-import com.zhiji.app.data.MoodContent
-import com.zhiji.app.data.PhotoContent
-import com.zhiji.app.data.Repo
-import com.zhiji.app.data.TextContent
+import com.asudiary.app.data.C
+import com.asudiary.app.data.DreamContent
+import com.asudiary.app.data.EntryEntity
+import com.asudiary.app.data.HealthContent
+import com.asudiary.app.data.HabitCheckinContent
+import com.asudiary.app.data.MoodContent
+import com.asudiary.app.data.PhotoContent
+import com.asudiary.app.data.Repo
+import com.asudiary.app.data.TextContent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -153,7 +153,7 @@ fun ShareSheet(req: ShareRequest, onDismiss: () -> Unit) {
                                         val ext = if (bytes.size > 4 && bytes[0] == 0x89.toByte() && bytes[1] == 0x50.toByte()) "png" else "jpg"
                                         val f = File(dir, "$id.$ext")
                                         f.writeBytes(bytes)
-                                        FileProvider.getUriForFile(ctx, "com.zhiji.app.fileprovider", f)
+                                        FileProvider.getUriForFile(ctx, "com.asudiary.app.fileprovider", f)
                                     }
                                 }
                                 val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
@@ -191,9 +191,9 @@ private fun shareMarkdownFile(ctx: Context, req: ShareRequest, md: String) {
         is ShareRequest.Day -> req.date
         is ShareRequest.Single -> req.entry.entryDate
     }
-    val file = File(dir, "知己-$date.md")
+    val file = File(dir, "明日日记-$date.md")
     file.writeText(md, Charsets.UTF_8)
-    val uri = FileProvider.getUriForFile(ctx, "com.zhiji.app.fileprovider", file)
+    val uri = FileProvider.getUriForFile(ctx, "com.asudiary.app.fileprovider", file)
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/markdown"
         putExtra(Intent.EXTRA_STREAM, uri)
@@ -280,7 +280,7 @@ fun buildShareText(req: ShareRequest): String {
         for (line in body) sb.append("　").append(line).append('\n')
         sb.append('\n')
     }
-    sb.append("—— 来自「知己」")
+    sb.append("—— 来自「明日日记」")
     return sb.toString().trimEnd('\n').replace("\n\n\n", "\n\n")
 }
 
@@ -295,6 +295,6 @@ fun buildShareMarkdown(req: ShareRequest): String {
         sb.append("- ").append(head).append('\n')
         for (line in body) sb.append("  ").append(line).append('\n')
     }
-    sb.append("\n*—— 来自「知己」*")
+    sb.append("\n*—— 来自「明日日记」*")
     return sb.toString()
 }

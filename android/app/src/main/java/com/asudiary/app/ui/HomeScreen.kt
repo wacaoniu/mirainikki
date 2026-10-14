@@ -1,4 +1,4 @@
-package com.zhiji.app.ui
+package com.asudiary.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,16 +37,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zhiji.app.data.C
-import com.zhiji.app.data.DreamContent
-import com.zhiji.app.data.EntryEntity
-import com.zhiji.app.data.HabitCheckinContent
-import com.zhiji.app.data.HealthContent
-import com.zhiji.app.data.MoodContent
-import com.zhiji.app.data.PhotoContent
-import com.zhiji.app.data.Repo
-import com.zhiji.app.data.TextContent
-import com.zhiji.app.data.todayLocal
+import com.asudiary.app.data.C
+import com.asudiary.app.data.DreamContent
+import com.asudiary.app.data.EntryEntity
+import com.asudiary.app.data.HabitCheckinContent
+import com.asudiary.app.data.HealthContent
+import com.asudiary.app.data.MoodContent
+import com.asudiary.app.data.PhotoContent
+import com.asudiary.app.data.Repo
+import com.asudiary.app.data.TextContent
+import com.asudiary.app.data.todayLocal
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -68,9 +68,9 @@ fun HomeScreen() {
             Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("📔 知己", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("📔 明日日记", fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(8.dp))
-            Text("记录生活 · 让 AI 更懂你", fontSize = 12.sp, color = Ink3)
+            Text("随手记，AI 帮你记着呢", fontSize = 12.sp, color = Ink3)
         }
 
         // 快速记一条：不用选类型，想写什么写什么，#标签 自动识别

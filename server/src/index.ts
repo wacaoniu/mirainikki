@@ -55,5 +55,5 @@ if (fs.existsSync(webDist)) {
 }
 
 await app.listen({ port, host });
-app.log.info(`「知己」后端已启动 http://${host}:${port}（FTS5 ${ftsAvailable ? '已启用' : '不可用，使用 LIKE 回退'}）`);
+app.log.info(`「明日日记」后端已启动 http://${host}:${port}（FTS5 ${ftsAvailable ? '已启用' : '不可用，使用 LIKE 回退'}）`);
 app.log.info(`上传目录：${path.resolve(UPLOAD_DIR)}`);

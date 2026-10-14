@@ -10,7 +10,7 @@ export const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(ROOT, 'uploads');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-export const db = new DatabaseSync(path.join(DATA_DIR, 'zhiji.db'));
+export const db = new DatabaseSync(path.join(DATA_DIR, 'asudiary.db'));
 db.exec('PRAGMA journal_mode = WAL;');
 
 db.exec(`

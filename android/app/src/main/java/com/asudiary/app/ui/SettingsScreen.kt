@@ -1,4 +1,4 @@
-package com.zhiji.app.ui
+package com.asudiary.app.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,8 +34,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zhiji.app.data.Repo
-import com.zhiji.app.data.SyncWorker
+import com.asudiary.app.data.Repo
+import com.asudiary.app.data.SyncWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,7 +53,7 @@ fun SettingsScreen() {
     var busy by remember { mutableStateOf(false) }
     var syncing by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf(false) }
-    var importResult by remember { mutableStateOf<Pair<List<com.zhiji.app.data.LegacyImport.Parsed>, List<String>>?>(null) }
+    var importResult by remember { mutableStateOf<Pair<List<com.asudiary.app.data.LegacyImport.Parsed>, List<String>>?>(null) }
     var backupMsg by remember { mutableStateOf("") }
     val configured = repo.api.configured
 
@@ -88,7 +88,7 @@ fun SettingsScreen() {
                         backupMsg = "✓ 恢复完成：记录 $e 条，习惯 $h 个（与备份中相同的旧数据自动跳过）"
                     }
                 } else {
-                    val (parsed, unparsed) = com.zhiji.app.data.LegacyImport.parse(text, com.zhiji.app.data.todayLocal())
+                    val (parsed, unparsed) = com.asudiary.app.data.LegacyImport.parse(text, com.asudiary.app.data.todayLocal())
                     for (p in parsed) {
                         val hashTags = Regex("#([\\w\\u4e00-\\u9fa5-]+)").findAll(p.body).map { it.groupValues[1] }.toList()
                         repo.addText(null, p.body, hashTags, p.entryDate)
@@ -98,7 +98,7 @@ fun SettingsScreen() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     backupMsg = "✗ 处理失败：${e.message}"
-                    importResult = emptyList<com.zhiji.app.data.LegacyImport.Parsed>() to listOf(e.message ?: "读取失败")
+                    importResult = emptyList<com.asudiary.app.data.LegacyImport.Parsed>() to listOf(e.message ?: "读取失败")
                 }
             } finally {
                 withContext(Dispatchers.Main) { importing = false }
@@ -253,7 +253,7 @@ fun SettingsScreen() {
                 )
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(onClick = {
-                    backupSaver.launch("知己备份-${com.zhiji.app.data.todayLocal()}.json")
+                    backupSaver.launch("明日日记备份-${com.asudiary.app.data.todayLocal()}.json")
                 }) { Text("📤 导出备份（全量 json）") }
                 if (backupMsg.isNotEmpty() && backupMsg.startsWith("✓ 备份")) {
                     Spacer(Modifier.height(6.dp))
@@ -270,12 +270,12 @@ fun SettingsScreen() {
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("关于「知己」", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("关于「明日日记」AsuDiary", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "· 所有记录先保存在手机本地，联网后自动同步到你的服务器（每 15 分钟）\n" +
-                        "· 电脑打开 服务器地址 即可回看日记、查看统计、生成 AI 记忆档案\n" +
-                        "· 数据完全属于你：服务器上就是 SQLite 文件 + 图片目录，拷走即备份",
+                    "· 随手记的都在手机里，连上服务器就自动同步（每 15 分钟）\n" +
+                        "· 电脑打开服务器地址，回看、统计、AI 档案都有\n" +
+                        "· 数据是你的：服务器上就俩文件夹，拷走就是备份",
                     fontSize = 13.sp, color = Ink2, lineHeight = 21.sp,
                 )
             }

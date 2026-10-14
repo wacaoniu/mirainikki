@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.zhiji.app"
+    namespace = "com.asudiary.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.zhiji.app"
+        applicationId = "com.asudiary.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
