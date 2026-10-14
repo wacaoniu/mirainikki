@@ -1,14 +1,9 @@
 import { DatabaseSync } from 'node:sqlite';
-import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { DATA_DIR, UPLOAD_DIR } from './paths.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const ROOT = path.resolve(__dirname, '..');
-export const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
-export const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(ROOT, 'uploads');
-fs.mkdirSync(DATA_DIR, { recursive: true });
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+export const ROOT = path.dirname(DATA_DIR);
+export { DATA_DIR, UPLOAD_DIR };
 
 export const db = new DatabaseSync(path.join(DATA_DIR, 'mirainikki.db'));
 db.exec('PRAGMA journal_mode = WAL;');

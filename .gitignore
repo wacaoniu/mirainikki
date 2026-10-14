@@ -11,3 +11,5 @@ server/uploads/
 server/.env
 android/local.properties
 .zcode/
+dist-exe/
+server/.sea/
