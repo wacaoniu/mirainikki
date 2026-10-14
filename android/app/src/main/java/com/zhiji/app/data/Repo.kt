@@ -11,10 +11,12 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.util.UUID
 
-/** 数据仓库：本地 Room 为真相源，后台与服务端 LWW 同步 */
+/** 数据仓库：本地 Room 为真相源，后台与服务端 LWW 同步。
+ *  注意：不加 fallbackToDestructiveMigration —— 升级 APK 时宁可启动失败也不静默清空用户日记；
+ *  版本不匹配时按 Migration 显式迁移（见 AppDatabase.MIGRATIONS）。 */
 class Repo(private val ctx: Context) {
     val db: AppDatabase = Room.databaseBuilder(ctx, AppDatabase::class.java, "zhiji.db")
-        .fallbackToDestructiveMigration()
+        .addMigrations(*AppDatabase.MIGRATIONS)
         .build()
     val api = Api(ctx)
     private val entryDao = db.entryDao()
@@ -108,6 +110,86 @@ class Repo(private val ctx: Context) {
         habitDao.upsert(h.copy(deleted = true, updatedAt = nowISO()))
     }
 
+    // ---------- 备份 / 恢复 ----------
+
+    /** 导出全量备份 JSON（与网页端「全量备份」同构：entries + habits） */
+    suspend fun exportBackupJson(): String {
+        val entries = entryDao.allEntries().map { e ->
+            buildString {
+                append("{\"clientId\":\"").append(e.clientId).append("\",\"type\":\"").append(e.type)
+                append("\",\"content\":").append(e.contentJson)
+                append(",\"tags\":").append(e.tagsJson)
+                append(",\"entryDate\":\"").append(e.entryDate).append("\",\"createdAt\":\"").append(e.createdAt)
+                append("\",\"updatedAt\":\"").append(e.updatedAt).append("\",\"deleted\":").append(e.deleted)
+                append(",\"dirty\":").append(e.dirty).append("}")
+            }
+        }
+        val habits = habitDao.allHabits().map { h ->
+            buildString {
+                append("{\"clientId\":\"").append(h.clientId).append("\",\"name\":\"").append(h.name.replace("\\", "\\\\").replace("\"", "\\\""))
+                append("\",\"emoji\":\"").append(h.emoji).append("\",\"color\":\"").append(h.color)
+                append("\",\"archived\":").append(h.archived)
+                append(",\"sortOrder\":").append(h.sortOrder)
+                append(",\"createdAt\":\"").append(h.createdAt).append("\",\"updatedAt\":\"").append(h.updatedAt)
+                append("\",\"deleted\":").append(h.deleted).append(",\"dirty\":").append(h.dirty).append("}")
+            }
+        }
+        return "{\"exportedAt\":\"${nowISO()}\",\"app\":\"zhiji-android\",\"entries\":[${entries.joinToString(",")}],\"habits\":[${habits.joinToString(",")}]}"
+    }
+
+    /** 从全量备份恢复（LWW：只接受比本地新或不存在的记录；不清空现有数据，可安全重复执行） */
+    suspend fun restoreBackupJson(text: String): Pair<Int, Int> {
+        val obj = C.json.parseToJsonElement(text).jsonObject
+        var restoredE = 0
+        var restoredH = 0
+        for (el in obj["entries"]?.jsonArray ?: kotlinx.serialization.json.JsonArray(emptyList())) {
+            val o = el.jsonObject
+            val entity = entryFromJson(o) ?: continue
+            val local = entryDao.byClientId(entity.clientId)
+            if (local == null || local.updatedAt < entity.updatedAt) {
+                entryDao.upsert(entity.copy(dirty = true))
+                restoredE++
+            }
+        }
+        for (el in obj["habits"]?.jsonArray ?: kotlinx.serialization.json.JsonArray(emptyList())) {
+            val o = el.jsonObject
+            val entity = habitFromJson(o) ?: continue
+            val local = habitDao.byClientId(entity.clientId)
+            if (local == null || local.updatedAt < entity.updatedAt) {
+                habitDao.upsert(entity.copy(dirty = true))
+                restoredH++
+            }
+        }
+        return restoredE to restoredH
+    }
+
+    private fun entryFromJson(o: JsonObject): EntryEntity? = runCatching {
+        EntryEntity(
+            clientId = o["clientId"]!!.jsonPrimitive.content,
+            type = o["type"]!!.jsonPrimitive.content,
+            contentJson = o["content"]!!.toString(),
+            tagsJson = o["tags"]?.toString() ?: "[]",
+            entryDate = o["entryDate"]!!.jsonPrimitive.content,
+            createdAt = o["createdAt"]?.jsonPrimitive?.content ?: nowISO(),
+            updatedAt = o["updatedAt"]?.jsonPrimitive?.content ?: nowISO(),
+            deleted = o["deleted"]?.jsonPrimitive?.content == "true",
+        )
+    }.getOrNull()
+
+    private fun habitFromJson(o: JsonObject): HabitEntity? = runCatching {
+        HabitEntity(
+            clientId = o["clientId"]!!.jsonPrimitive.content,
+            name = o["name"]!!.jsonPrimitive.content,
+            emoji = o["emoji"]?.jsonPrimitive?.content ?: "✅",
+            color = o["color"]?.jsonPrimitive?.content ?: "#7C9A6D",
+            archived = o["archived"]?.jsonPrimitive?.content == "true",
+            sortOrder = o["sortOrder"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+            createdAt = o["createdAt"]?.jsonPrimitive?.content ?: nowISO(),
+            updatedAt = o["updatedAt"]?.jsonPrimitive?.content ?: nowISO(),
+            deleted = o["deleted"]?.jsonPrimitive?.content == "true",
+        )
+    }.getOrNull()
+
     // ---------- 同步 ----------
     data class SyncResult(val pushed: Int, val pulled: Int, val error: String? = null)
 
@@ -135,8 +217,7 @@ class Repo(private val ctx: Context) {
             val resp = api.pull(api.lastPull)
             var pulled = 0
             for (e in resp["entries"]?.jsonArray ?: kotlinx.serialization.json.JsonArray(emptyList())) {
-                val o = e.jsonObject
-                val entity = entryFromJson(o)
+                val entity = entryFromJson(e.jsonObject) ?: continue
                 val local = entryDao.byClientId(entity.clientId)
                 if (local == null || local.updatedAt < entity.updatedAt) {
                     entryDao.upsert(entity)
@@ -144,8 +225,7 @@ class Repo(private val ctx: Context) {
                 }
             }
             for (h in resp["habits"]?.jsonArray ?: kotlinx.serialization.json.JsonArray(emptyList())) {
-                val o = h.jsonObject
-                val entity = habitFromJson(o)
+                val entity = habitFromJson(h.jsonObject) ?: continue
                 val local = habitDao.byClientId(entity.clientId)
                 if (local == null || local.updatedAt < entity.updatedAt) {
                     habitDao.upsert(entity)
@@ -155,31 +235,6 @@ class Repo(private val ctx: Context) {
             (resp["serverTime"] as? JsonPrimitive)?.content?.let { api.lastPull = it }
             return SyncResult(dirtyE.size + dirtyH.size, pulled)
     }
-
-    private fun entryFromJson(o: JsonObject): EntryEntity = EntryEntity(
-        clientId = o["clientId"]!!.jsonPrimitive.content,
-        type = o["type"]!!.jsonPrimitive.content,
-        contentJson = o["content"]!!.toString(),
-        tagsJson = o["tags"]?.toString() ?: "[]",
-        entryDate = o["entryDate"]!!.jsonPrimitive.content,
-        createdAt = o["createdAt"]!!.jsonPrimitive.content,
-        updatedAt = o["updatedAt"]!!.jsonPrimitive.content,
-        deleted = (o["deleted"] as? JsonPrimitive)?.content == "true",
-        dirty = false,
-    )
-
-    private fun habitFromJson(o: JsonObject): HabitEntity = HabitEntity(
-        clientId = o["clientId"]!!.jsonPrimitive.content,
-        name = o["name"]!!.jsonPrimitive.content,
-        emoji = o["emoji"]?.jsonPrimitive?.content ?: "✅",
-        color = o["color"]?.jsonPrimitive?.content ?: "#7C9A6D",
-        archived = (o["archived"] as? JsonPrimitive)?.content == "true",
-        sortOrder = (o["sortOrder"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0,
-        createdAt = o["createdAt"]?.jsonPrimitive?.content ?: nowISO(),
-        updatedAt = o["updatedAt"]?.jsonPrimitive?.content ?: nowISO(),
-        deleted = (o["deleted"] as? JsonPrimitive)?.content == "true",
-        dirty = false,
-    )
 
     companion object {
         @Volatile private var instance: Repo? = null

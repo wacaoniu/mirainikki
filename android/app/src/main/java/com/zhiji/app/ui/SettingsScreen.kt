@@ -54,23 +54,52 @@ fun SettingsScreen() {
     var syncing by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf(false) }
     var importResult by remember { mutableStateOf<Pair<List<com.zhiji.app.data.LegacyImport.Parsed>, List<String>>?>(null) }
+    var backupMsg by remember { mutableStateOf("") }
     val configured = repo.api.configured
 
+    // 导出备份：CreateDocument 生成 json 到用户选的位置（下载/网盘均可）
+    val backupSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch(Dispatchers.IO) {
+            try {
+                val json = repo.exportBackupJson()
+                ctx.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+                    ?: throw Exception("无法写入文件")
+                withContext(Dispatchers.Main) { backupMsg = "✓ 备份已导出（包含全部记录与习惯，妥善保存此文件）" }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { backupMsg = "✗ 导出失败：${e.message}" }
+            }
+        }
+    }
+
+    // 恢复备份 / 导入：同一个选择器，json 走完整恢复，md/txt 走旧日记导入
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        importing = true; importResult = null
+        importing = true; importResult = null; backupMsg = ""
         scope.launch(Dispatchers.IO) {
             try {
                 val text = ctx.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.readText()
                     ?: throw Exception("无法读取文件")
-                val (parsed, unparsed) = com.zhiji.app.data.LegacyImport.parse(text, com.zhiji.app.data.todayLocal())
-                for (p in parsed) {
-                    val hashTags = Regex("#([\\w\\u4e00-\\u9fa5-]+)").findAll(p.body).map { it.groupValues[1] }.toList()
-                    repo.addText(null, p.body, hashTags, p.entryDate)
+                val trimmed = text.trim()
+                if (trimmed.startsWith("{") && trimmed.contains("\"entries\"")) {
+                    // 全量备份 → 完整恢复
+                    val (e, h) = repo.restoreBackupJson(text)
+                    withContext(Dispatchers.Main) {
+                        backupMsg = "✓ 恢复完成：记录 $e 条，习惯 $h 个（与备份中相同的旧数据自动跳过）"
+                    }
+                } else {
+                    val (parsed, unparsed) = com.zhiji.app.data.LegacyImport.parse(text, com.zhiji.app.data.todayLocal())
+                    for (p in parsed) {
+                        val hashTags = Regex("#([\\w\\u4e00-\\u9fa5-]+)").findAll(p.body).map { it.groupValues[1] }.toList()
+                        repo.addText(null, p.body, hashTags, p.entryDate)
+                    }
+                    withContext(Dispatchers.Main) { importResult = parsed to unparsed }
                 }
-                withContext(Dispatchers.Main) { importResult = parsed to unparsed }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { importResult = emptyList<com.zhiji.app.data.LegacyImport.Parsed>() to listOf(e.message ?: "读取失败") }
+                withContext(Dispatchers.Main) {
+                    backupMsg = "✗ 处理失败：${e.message}"
+                    importResult = emptyList<com.zhiji.app.data.LegacyImport.Parsed>() to listOf(e.message ?: "读取失败")
+                }
             } finally {
                 withContext(Dispatchers.Main) { importing = false }
             }
@@ -199,6 +228,36 @@ fun SettingsScreen() {
                         else "✓ 导入 ${r.first.size} 条，${r.second.size} 段无法识别（无日期行）",
                         fontSize = 13.sp, color = AccentDark,
                     )
+                }
+                if (backupMsg.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(backupMsg, fontSize = 13.sp, color = if (backupMsg.startsWith("✗")) Danger else AccentDark)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+        Card(
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("💾 备份与恢复", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "「导出备份」把手机里全部记录存成一个 json 文件——存到下载目录、发给自己（微信文件传输助手）或存网盘均可。\n" +
+                        "换手机 / 误删 / 数据丢失时，用上面的「导入」选这个 json 文件即可完整恢复。\n建议每周导出一次。",
+                    fontSize = 13.sp, color = Ink2, lineHeight = 20.sp,
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = {
+                    backupSaver.launch("知己备份-${com.zhiji.app.data.todayLocal()}.json")
+                }) { Text("📤 导出备份（全量 json）") }
+                if (backupMsg.isNotEmpty() && backupMsg.startsWith("✓ 备份")) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(backupMsg, fontSize = 13.sp, color = AccentDark)
                 }
             }
         }

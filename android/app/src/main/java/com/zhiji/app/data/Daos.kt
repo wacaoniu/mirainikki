@@ -25,6 +25,9 @@ interface EntryDao {
     @Query("SELECT * FROM entries WHERE dirty = 1 LIMIT 500")
     suspend fun dirtyEntries(): List<EntryEntity>
 
+    @Query("SELECT * FROM entries")
+    suspend fun allEntries(): List<EntryEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(entries: List<EntryEntity>)
 
@@ -70,6 +73,9 @@ interface HabitDao {
     @Query("SELECT COUNT(*) FROM habits WHERE dirty = 1")
     suspend fun dirtyCount(): Int
 
+    @Query("SELECT * FROM habits")
+    suspend fun allHabits(): List<HabitEntity>
+
     @Query("UPDATE habits SET dirty = 0 WHERE clientId IN (:ids)")
     suspend fun markClean(ids: List<String>)
 }
@@ -78,4 +84,14 @@ interface HabitDao {
 abstract class AppDatabase : RoomDatabase() {
     abstract fun entryDao(): EntryDao
     abstract fun habitDao(): HabitDao
+
+    companion object {
+        /**
+         * 数据库结构变更时在此追加迁移（version 递增）：
+         *   val MIGRATION_1_2 = object : Migration(1, 2) { override fun migrate(db: SupportSQLiteDatabase) { ... } }
+         * 并在 Repo 构建处 .addMigrations(*MIGRATIONS)。
+         * 绝不使用 fallbackToDestructiveMigration——那会清空用户全部日记。
+         */
+        val MIGRATIONS: Array<androidx.room.migration.Migration> = arrayOf()
+    }
 }
