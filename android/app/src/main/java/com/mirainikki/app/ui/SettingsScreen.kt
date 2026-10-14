@@ -41,6 +41,8 @@ import com.mirainikki.app.data.Repo
 import com.mirainikki.app.data.SyncWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.Arrangement
+import com.mirainikki.app.BuildConfig
 import kotlinx.coroutines.withContext
 
 /** 设置页：服务器连接 · 手动同步 · 说明 */
@@ -58,7 +60,60 @@ fun SettingsScreen() {
     var importing by remember { mutableStateOf(false) }
     var importResult by remember { mutableStateOf<Pair<List<com.mirainikki.app.data.LegacyImport.Parsed>, List<String>>?>(null) }
     var backupMsg by remember { mutableStateOf("") }
+    // 检查更新：只在用户点"检查更新"时才联网，绝不自动/开屏检查
+    var updateState by remember { mutableStateOf("") }
+    var updateBusy by remember { mutableStateOf(false) }
+    var pendingRelease by remember { mutableStateOf<com.mirainikki.app.data.UpdateChecker.ReleaseInfo?>(null) }
+    var downloading by remember { mutableStateOf(false) }
+    var downloadPct by remember { mutableStateOf(0) }
     val configured = repo.api.configured
+
+    suspend fun doCheckUpdate() {
+        updateBusy = true
+        updateState = "检查中…"
+        pendingRelease = null
+        val r = withContext(Dispatchers.IO) {
+            runCatching { com.mirainikki.app.data.UpdateChecker.check(BuildConfig.VERSION_NAME) }
+        }
+        r.onSuccess { info ->
+            if (info == null) updateState = "✓ 已是最新版本（v${BuildConfig.VERSION_NAME}）"
+            else { pendingRelease = info; updateState = "发现新版本 v${info.version}" }
+        }.onFailure {
+            updateState = "✗ 检查失败：${it.message ?: "网络异常"}"
+        }
+        updateBusy = false
+    }
+
+    suspend fun doDownloadAndInstall(info: com.mirainikki.app.data.UpdateChecker.ReleaseInfo) {
+        val url = info.apkUrl ?: run { updateState = "✗ 该版本没有提供 APK"; return }
+        downloading = true
+        downloadPct = 0
+        updateState = "下载中 0%"
+        val r = withContext(Dispatchers.IO) {
+            runCatching {
+                val dest = java.io.File(ctx.cacheDir, "update/MiraiNikki-${info.version}.apk")
+                com.mirainikki.app.data.UpdateChecker.downloadApk(url, dest) { pct -> downloadPct = pct }
+                dest
+            }
+        }
+        downloading = false
+        r.onSuccess { file ->
+            updateState = "✓ 下载完成，请按系统提示安装"
+            try {
+                val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "com.mirainikki.app.fileprovider", file)
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                ctx.startActivity(intent)
+            } catch (e: Exception) {
+                updateState = "✗ 无法启动安装：${e.message}"
+            }
+        }.onFailure {
+            updateState = "✗ 下载失败：${it.message ?: "网络异常"}"
+        }
+    }
+
 
     // 导出备份：CreateDocument 生成 json 到用户选的位置（下载/网盘均可）
     val backupSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -256,6 +311,41 @@ fun SettingsScreen() {
                         "· 数据是你的：服务器上就俩文件夹，拷走就是备份",
                     fontSize = 13.sp, color = Ink2, lineHeight = 21.sp,
                 )
+
+                Spacer(Modifier.height(10.dp))
+                androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                DataRow(
+                    icon = "🔄",
+                    title = "检查更新",
+                    subtitle = when {
+                        downloading -> "下载中 $downloadPct%"
+                        updateState.isNotEmpty() -> updateState
+                        else -> "当前版本 v${BuildConfig.VERSION_NAME}（只在你手点时才联网检查）"
+                    },
+                    onClick = { if (!updateBusy && !downloading) scope.launch { doCheckUpdate() } },
+                )
+                pendingRelease?.let { info ->
+                    Spacer(Modifier.height(8.dp))
+                    Text("更新说明：", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        info.notes.ifBlank { "（该版本没有写更新说明）" }.take(600),
+                        fontSize = 12.5.sp, color = Ink2, lineHeight = 19.sp,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { scope.launch { doDownloadAndInstall(info) } },
+                            enabled = !downloading,
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentDark),
+                        ) { Text(if (downloading) "下载中 $downloadPct%" else "下载并安装") }
+                        OutlinedButton(onClick = {
+                            runCatching {
+                                ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(info.pageUrl)))
+                            }
+                        }) { Text("去网页看") }
+                        OutlinedButton(onClick = { pendingRelease = null; updateState = "" }) { Text("忽略") }
+                    }
+                }
             }
         }
         Spacer(Modifier.height(24.dp))
