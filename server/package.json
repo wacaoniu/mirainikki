@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "smoke": "node smoke.mjs"
+    "smoke": "node smoke.mjs",
+    "build:exe": "node build-exe.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
