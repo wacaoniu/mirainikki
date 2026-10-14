@@ -197,7 +197,7 @@ fun HomeScreen() {
                                 "mood" -> repo.addMood((content as MoodContent).score, content.emotions, content.note, tags, selectedDate)
                                 "text" -> repo.addText((content as TextContent).title, content.body ?: "", tags, selectedDate)
                                 "dream" -> repo.addDream((content as DreamContent).body, content.emotions, tags, selectedDate)
-                                "photo" -> repo.addPhoto((content as PhotoContent).caption, content.imageIds, tags, selectedDate)
+                                "photo" -> repo.addPhoto(content as PhotoContent, tags, selectedDate)
                                 "health" -> {
                                     val h = content as HealthContent
                                     repo.addHealth(h.sleepHours, h.weightKg, h.steps, tags, selectedDate)
@@ -327,11 +327,17 @@ private fun EntryBody(e: EntryEntity) {
         C.TYPE_PHOTO -> {
             val p = remember(e.clientId, e.updatedAt) { runCatching { C.decode<PhotoContent>(e.contentJson) }.getOrNull() } ?: return
             val repo = Repo.get(LocalContext.current)
-            if (p.imageIds.isNotEmpty() && repo.api.configured) {
+            // 优先显示本地文件（离线/刚记录完立即能看），本地没有的再走服务器
+            val models: List<Any> = buildList {
+                p.localFiles.forEach { path -> if (java.io.File(path).exists()) add(java.io.File(path)) }
+                val localIds = p.localFileIds.toSet()
+                p.imageIds.filter { it !in localIds }.forEach { id -> add(repo.api.serverUrl + "/api/images/$id/file") }
+            }
+            if (models.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    p.imageIds.take(3).forEach { id ->
+                    models.take(3).forEach { m ->
                         coil.compose.AsyncImage(
-                            model = repo.api.serverUrl + "/api/images/$id/file",
+                            model = m,
                             contentDescription = "照片",
                             modifier = Modifier
                                 .size(width = 96.dp, height = 96.dp)

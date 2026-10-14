@@ -50,8 +50,8 @@ class Repo(private val ctx: Context) {
     suspend fun addText(title: String?, body: String, tags: List<String>, date: String = todayLocal()) =
         insert(C.TYPE_TEXT, C.encode(TextContent(title?.takeIf { it.isNotBlank() }, body)), tags, date)
 
-    suspend fun addPhoto(caption: String?, imageIds: List<String>, tags: List<String>, date: String = todayLocal()) =
-        insert(C.TYPE_PHOTO, C.encode(PhotoContent(caption, imageIds)), tags, date)
+    suspend fun addPhoto(content: PhotoContent, tags: List<String>, date: String = todayLocal()) =
+        insert(C.TYPE_PHOTO, C.encode(content), tags, date)
 
     suspend fun addHabitCheckin(habit: HabitEntity, date: String = todayLocal()) =
         insert(C.TYPE_HABIT, C.encode(HabitCheckinContent(habit.clientId, habit.name)), emptyList(), date)
@@ -63,6 +63,14 @@ class Repo(private val ctx: Context) {
         insert(C.TYPE_DREAM, C.encode(DreamContent(body, emotions)), tags, date)
 
     suspend fun deleteEntry(clientId: String) = entryDao.softDelete(clientId, nowISO())
+
+    /** 把压缩后的照片写入应用私有目录，返回本地路径（离线优先用） */
+    fun saveLocalPhoto(bytes: ByteArray): String {
+        val dir = java.io.File(ctx.filesDir, "photos").apply { mkdirs() }
+        val f = java.io.File(dir, "${UUID.randomUUID()}.jpg")
+        f.writeBytes(bytes)
+        return f.absolutePath
+    }
 
     /** 编辑已有记录：更新内容并置脏，同步时以新时间戳覆盖服务端（LWW）。
      *  先 DELETE 再 INSERT（同事务）：确保 Room 的 Flow 感知到变化立即刷新 UI。 */
@@ -203,9 +211,52 @@ class Repo(private val ctx: Context) {
         }
     }
 
+    /** 把照片记录里还没上传的本地照片传到服务端，成功后回写 imageIds/localFileIds */
+    private suspend fun uploadPendingPhotos() {
+        val photoEntries = entryDao.dirtyEntries().filter { it.type == C.TYPE_PHOTO }
+        for (e in photoEntries) {
+            val c = runCatching { C.decode<PhotoContent>(e.contentJson) }.getOrNull() ?: continue
+            if (c.localFiles.isEmpty() || c.allUploaded) continue
+            val ids = c.localFileIds.toMutableList()
+            while (ids.size < c.localFiles.size) ids.add("")
+            val imageIds = c.imageIds.toMutableList()
+            var changed = false
+            c.localFiles.forEachIndexed { i, path ->
+                if ((ids.getOrNull(i) ?: "").isNotEmpty()) return@forEachIndexed
+                val f = java.io.File(path)
+                if (!f.exists()) return@forEachIndexed
+                // 单张失败（如网络抖动）不打断整体同步，留待下次补传
+                runCatching { api.uploadImage(f.readBytes(), "image/jpeg") }
+                    .onSuccess { (id, _) ->
+                        ids[i] = id
+                        if (id !in imageIds) imageIds.add(id)
+                        changed = true
+                    }
+            }
+            if (changed) {
+                entryDao.upsert(
+                    e.copy(
+                        contentJson = C.encode(c.copy(imageIds = imageIds, localFileIds = ids)),
+                        updatedAt = nowISO(),
+                        dirty = true,
+                    )
+                )
+            }
+        }
+    }
+
     private suspend fun syncOnceInner(): SyncResult {
+        // 先把离线保存的本地照片补传上去（这样照片记录不联网也能先记）
+        uploadPendingPhotos()
         // 推送本地变更（已在 IO 线程）
-        val dirtyE = entryDao.dirtyEntries()
+        val dirtyAll = entryDao.dirtyEntries()
+        // 照片还没上传完的记录暂不推送（下次同步补完照片再推）
+        val dirtyE = dirtyAll.filter { e ->
+            if (e.type != C.TYPE_PHOTO) true
+            else runCatching { C.decode<PhotoContent>(e.contentJson) }
+                .map { c -> c.allUploaded && c.imageIds.isNotEmpty() }
+                .getOrDefault(true)
+        }
         val dirtyH = habitDao.dirtyHabits()
         if (dirtyE.isNotEmpty() || dirtyH.isNotEmpty()) {
             val pushResp = api.push(dirtyE, dirtyH)

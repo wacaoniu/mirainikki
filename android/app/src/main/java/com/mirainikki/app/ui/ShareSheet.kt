@@ -71,9 +71,13 @@ fun ShareSheet(req: ShareRequest, onDismiss: () -> Unit) {
         is ShareRequest.Day -> "分享 ${friendlyDate(req.date)} 的日记"
         is ShareRequest.Single -> "分享这条记录"
     }
-    val photoIds = remember(req) {
-        reqEntries(req).filter { it.type == C.TYPE_PHOTO }.flatMap {
-            runCatching { C.decode<PhotoContent>(it.contentJson).imageIds }.getOrDefault(emptyList())
+    val photoSources = remember(req) {
+        reqEntries(req).filter { it.type == C.TYPE_PHOTO }.flatMap { e ->
+            val c = runCatching { C.decode<PhotoContent>(e.contentJson) }.getOrNull() ?: return@flatMap emptyList()
+            val locals = c.localFiles.filter { java.io.File(it).exists() }
+            val localIds = c.localFileIds.toSet()
+            locals.map { PhotoSource.Local(it) } +
+                c.imageIds.filter { it !in localIds }.map { PhotoSource.Server(it) }
         }
     }
     var photoBusy by remember { mutableStateOf(false) }
@@ -135,25 +139,32 @@ fun ShareSheet(req: ShareRequest, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("📄  导出 / 分享 .md 文件") }
 
-            if (photoIds.isNotEmpty()) {
+            if (photoSources.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = {
-                        if (!repo.api.configured) {
-                            Toast.makeText(ctx, "照片在服务器上，请先在「设置」里连接服务器", Toast.LENGTH_SHORT).show()
-                            return@OutlinedButton
-                        }
                         photoBusy = true
                         scope.launch {
                             try {
                                 val uris = withContext(Dispatchers.IO) {
                                     val dir = File(ctx.cacheDir, "share").apply { mkdirs() }
-                                    photoIds.map { id ->
-                                        val bytes = repo.api.downloadImage(id)
-                                        val ext = if (bytes.size > 4 && bytes[0] == 0x89.toByte() && bytes[1] == 0x50.toByte()) "png" else "jpg"
-                                        val f = File(dir, "$id.$ext")
-                                        f.writeBytes(bytes)
-                                        FileProvider.getUriForFile(ctx, "com.mirainikki.app.fileprovider", f)
+                                    photoSources.map { src ->
+                                        when (src) {
+                                            is PhotoSource.Local -> {
+                                                // 本地文件直接复制一份到分享目录（保留原始文件名后缀）
+                                                val srcFile = File(src.path)
+                                                val f = File(dir, srcFile.name)
+                                                srcFile.copyTo(f, overwrite = true)
+                                                FileProvider.getUriForFile(ctx, "com.mirainikki.app.fileprovider", f)
+                                            }
+                                            is PhotoSource.Server -> {
+                                                val bytes = repo.api.downloadImage(src.id)
+                                                val ext = if (bytes.size > 4 && bytes[0] == 0x89.toByte() && bytes[1] == 0x50.toByte()) "png" else "jpg"
+                                                val f = File(dir, "${src.id}.$ext")
+                                                f.writeBytes(bytes)
+                                                FileProvider.getUriForFile(ctx, "com.mirainikki.app.fileprovider", f)
+                                            }
+                                        }
                                     }
                                 }
                                 val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
@@ -171,10 +182,16 @@ fun ShareSheet(req: ShareRequest, onDismiss: () -> Unit) {
                     },
                     enabled = !photoBusy,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(if (photoBusy) "下载原图中…" else "🖼  分享照片原图（${photoIds.size} 张）") }
+                ) { Text(if (photoBusy) "准备照片中…" else "🖼  分享照片原图（${photoSources.size} 张）") }
             }
         }
     }
+}
+
+/** 分享照片的来源：优先本地文件，其次服务端 */
+sealed class PhotoSource {
+    data class Local(val path: String) : PhotoSource()
+    data class Server(val id: String) : PhotoSource()
 }
 
 private fun shareText(ctx: Context, text: String, title: String) {
