@@ -1,4 +1,4 @@
-package com.asudiary.app.data
+package com.mirainikki.app.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

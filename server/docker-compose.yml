@@ -1,7 +1,7 @@
 services:
-  asudiary:
+  mirainikki:
     build: .
-    container_name: asudiary-server
+    container_name: mirainikki-server
     restart: unless-stopped
     ports:
       - "8787:8787"

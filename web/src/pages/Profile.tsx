@@ -40,7 +40,7 @@ export default function Profile() {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `asudiary-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `mirainikki-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
     setToast('全量备份已下载');

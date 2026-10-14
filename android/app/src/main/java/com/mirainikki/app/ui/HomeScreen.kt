@@ -1,4 +1,4 @@
-package com.asudiary.app.ui
+package com.mirainikki.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,16 +37,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.asudiary.app.data.C
-import com.asudiary.app.data.DreamContent
-import com.asudiary.app.data.EntryEntity
-import com.asudiary.app.data.HabitCheckinContent
-import com.asudiary.app.data.HealthContent
-import com.asudiary.app.data.MoodContent
-import com.asudiary.app.data.PhotoContent
-import com.asudiary.app.data.Repo
-import com.asudiary.app.data.TextContent
-import com.asudiary.app.data.todayLocal
+import com.mirainikki.app.data.C
+import com.mirainikki.app.data.DreamContent
+import com.mirainikki.app.data.EntryEntity
+import com.mirainikki.app.data.HabitCheckinContent
+import com.mirainikki.app.data.HealthContent
+import com.mirainikki.app.data.MoodContent
+import com.mirainikki.app.data.PhotoContent
+import com.mirainikki.app.data.Repo
+import com.mirainikki.app.data.TextContent
+import com.mirainikki.app.data.todayLocal
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -68,7 +68,7 @@ fun HomeScreen() {
             Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("📔 明日日记", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("📔 未来日记", fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(8.dp))
             Text("随手记，AI 帮你记着呢", fontSize = 12.sp, color = Ink3)
         }

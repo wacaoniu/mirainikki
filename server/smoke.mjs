@@ -71,7 +71,7 @@ check('创建第二个习惯', !!habit2);
 console.log('[五类记录]');
 r = await api('POST', '/api/entries', { type: 'mood', content: { score: 4, emotions: ['开心', '平静'] }, tags: ['周末'] });
 check('心情打卡', r.status === 200 && r.data?.type === 'mood', JSON.stringify(r.data));
-r = await api('POST', '/api/entries', { type: 'text', content: { title: '项目启动', body: '今天开始做明日日记 App，把生活方方面面都记录下来，以后让 AI 更了解我。' }, tags: ['开发', '项目'] });
+r = await api('POST', '/api/entries', { type: 'text', content: { title: '项目启动', body: '今天开始做未来日记 App，把生活方方面面都记录下来，以后让 AI 更了解我。' }, tags: ['开发', '项目'] });
 check('文字日记', r.status === 200 && r.data?.content?.title === '项目启动');
 r = await api('POST', '/api/entries', { type: 'photo', content: { caption: '今天的晚霞', imageIds: [] }, tags: [] });
 check('空图照片被拒（400，至少 1 张图）', r.status === 400);

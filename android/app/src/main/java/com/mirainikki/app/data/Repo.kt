@@ -1,4 +1,4 @@
-package com.asudiary.app.data
+package com.mirainikki.app.data
 
 import android.content.Context
 import androidx.room.Room
@@ -15,7 +15,7 @@ import java.util.UUID
  *  注意：不加 fallbackToDestructiveMigration —— 升级 APK 时宁可启动失败也不静默清空用户日记；
  *  版本不匹配时按 Migration 显式迁移（见 AppDatabase.MIGRATIONS）。 */
 class Repo(private val ctx: Context) {
-    val db: AppDatabase = Room.databaseBuilder(ctx, AppDatabase::class.java, "asudiary.db")
+    val db: AppDatabase = Room.databaseBuilder(ctx, AppDatabase::class.java, "mirainikki.db")
         .addMigrations(*AppDatabase.MIGRATIONS)
         .build()
     val api = Api(ctx)
@@ -134,7 +134,7 @@ class Repo(private val ctx: Context) {
                 append("\",\"deleted\":").append(h.deleted).append(",\"dirty\":").append(h.dirty).append("}")
             }
         }
-        return "{\"exportedAt\":\"${nowISO()}\",\"app\":\"asudiary-android\",\"entries\":[${entries.joinToString(",")}],\"habits\":[${habits.joinToString(",")}]}"
+        return "{\"exportedAt\":\"${nowISO()}\",\"app\":\"mirainikki-android\",\"entries\":[${entries.joinToString(",")}],\"habits\":[${habits.joinToString(",")}]}"
     }
 
     /** 从全量备份恢复（LWW：只接受比本地新或不存在的记录；不清空现有数据，可安全重复执行） */

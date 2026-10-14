@@ -1,4 +1,4 @@
-package com.asudiary.app.ui
+package com.mirainikki.app.ui
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

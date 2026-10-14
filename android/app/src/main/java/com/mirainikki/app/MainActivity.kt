@@ -1,4 +1,4 @@
-package com.asudiary.app
+package com.mirainikki.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -21,12 +21,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.asudiary.app.data.Repo
-import com.asudiary.app.data.SyncWorker
-import com.asudiary.app.ui.HabitsScreen
-import com.asudiary.app.ui.HomeScreen
-import com.asudiary.app.ui.SettingsScreen
-import com.asudiary.app.ui.ShadoujiTheme
+import com.mirainikki.app.data.Repo
+import com.mirainikki.app.data.SyncWorker
+import com.mirainikki.app.ui.HabitsScreen
+import com.mirainikki.app.ui.HomeScreen
+import com.mirainikki.app.ui.SettingsScreen
+import com.mirainikki.app.ui.ShadoujiTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {

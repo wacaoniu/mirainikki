@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.asudiary.app"
+    namespace = "com.mirainikki.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.asudiary.app"
+        applicationId = "com.mirainikki.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

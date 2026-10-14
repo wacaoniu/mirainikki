@@ -1,4 +1,4 @@
-package com.asudiary.app.ui
+package com.mirainikki.app.ui
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -47,15 +47,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.asudiary.app.data.C
-import com.asudiary.app.data.todayLocal
-import com.asudiary.app.data.DreamContent
-import com.asudiary.app.data.EntryEntity
-import com.asudiary.app.data.HealthContent
-import com.asudiary.app.data.MoodContent
-import com.asudiary.app.data.PhotoContent
-import com.asudiary.app.data.Repo
-import com.asudiary.app.data.TextContent
+import com.mirainikki.app.data.C
+import com.mirainikki.app.data.todayLocal
+import com.mirainikki.app.data.DreamContent
+import com.mirainikki.app.data.EntryEntity
+import com.mirainikki.app.data.HealthContent
+import com.mirainikki.app.data.MoodContent
+import com.mirainikki.app.data.PhotoContent
+import com.mirainikki.app.data.Repo
+import com.mirainikki.app.data.TextContent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

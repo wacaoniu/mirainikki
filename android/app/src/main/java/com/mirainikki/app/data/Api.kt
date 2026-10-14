@@ -1,4 +1,4 @@
-package com.asudiary.app.data
+package com.mirainikki.app.data
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 
 /** 服务端 API 客户端：OkHttp + kotlinx.serialization */
 class Api(private val ctx: Context) {
-    val prefs: SharedPreferences = ctx.getSharedPreferences("asudiary", Context.MODE_PRIVATE)
+    val prefs: SharedPreferences = ctx.getSharedPreferences("mirainikki", Context.MODE_PRIVATE)
     val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     var serverUrl: String
@@ -65,7 +65,7 @@ class Api(private val ctx: Context) {
     }
 
     fun uploadImage(bytes: ByteArray, mime: String): Pair<String, String> {
-        val boundary = "asudiary-" + System.currentTimeMillis()
+        val boundary = "mirainikki-" + System.currentTimeMillis()
         val body = buildString {
             append("--$boundary\r\n")
             append("Content-Disposition: form-data; name=\"file\"; filename=\"photo.jpg\"\r\n")

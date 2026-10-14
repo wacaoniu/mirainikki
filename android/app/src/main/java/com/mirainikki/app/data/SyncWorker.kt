@@ -1,4 +1,4 @@
-package com.asudiary.app.data
+package com.mirainikki.app.data
 
 import android.content.Context
 import androidx.work.CoroutineWorker
@@ -16,7 +16,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
     }
 
     companion object {
-        private const val NAME = "asudiary-sync"
+        private const val NAME = "mirainikki-sync"
         fun schedule(ctx: Context) {
             val req = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES).build()
             WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(NAME, ExistingPeriodicWorkPolicy.KEEP, req)

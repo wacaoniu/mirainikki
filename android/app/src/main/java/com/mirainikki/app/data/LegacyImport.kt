@@ -1,4 +1,4 @@
-package com.asudiary.app.data
+package com.mirainikki.app.data
 
 /**
  * 旧日记文本解析（与 web/src/lib/legacyImport.ts 同逻辑）：
