@@ -84,14 +84,46 @@ fun SettingsScreen() {
         updateBusy = false
     }
 
+    fun launchInstall(file: java.io.File) {
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "com.mirainikki.app.fileprovider", file)
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            ctx.startActivity(intent)
+        } catch (e: Exception) {
+            updateState = "✗ 无法启动安装：${e.message}"
+        }
+    }
+
     suspend fun doDownloadAndInstall(info: com.mirainikki.app.data.UpdateChecker.ReleaseInfo) {
+        // 首次需要允许"安装未知应用"：直接引导去设置，授权后回来再点一次即可
+        if (!ctx.packageManager.canRequestPackageInstalls()) {
+            updateState = "请先允许安装未知应用，然后回来再点一次"
+            runCatching {
+                ctx.startActivity(
+                    android.content.Intent(
+                        android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        android.net.Uri.parse("package:${ctx.packageName}"),
+                    ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
+            return
+        }
+        // 已经下过的直接装，不重复下载
+        val dest = java.io.File(ctx.cacheDir, "update/MiraiNikki-${info.version}.apk")
+        if (dest.exists() && dest.length() > 1024 * 1024) {
+            updateState = "✓ 已有安装包，正在打开安装"
+            launchInstall(dest)
+            return
+        }
         val url = info.apkUrl ?: run { updateState = "✗ 该版本没有提供 APK"; return }
         downloading = true
         downloadPct = 0
         updateState = "下载中 0%"
         val r = withContext(Dispatchers.IO) {
             runCatching {
-                val dest = java.io.File(ctx.cacheDir, "update/MiraiNikki-${info.version}.apk")
                 com.mirainikki.app.data.UpdateChecker.downloadApk(url, dest) { pct -> downloadPct = pct }
                 dest
             }
@@ -99,17 +131,9 @@ fun SettingsScreen() {
         downloading = false
         r.onSuccess { file ->
             updateState = "✓ 下载完成，请按系统提示安装"
-            try {
-                val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "com.mirainikki.app.fileprovider", file)
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                    setDataAndType(uri, "application/vnd.android.package-archive")
-                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                ctx.startActivity(intent)
-            } catch (e: Exception) {
-                updateState = "✗ 无法启动安装：${e.message}"
-            }
+            launchInstall(file)
         }.onFailure {
+            runCatching { dest.delete() } // 半截文件删掉，下次重下
             updateState = "✗ 下载失败：${it.message ?: "网络异常"}"
         }
     }
