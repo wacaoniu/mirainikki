@@ -2,6 +2,9 @@ package com.mirainikki.app.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -198,68 +201,43 @@ fun SettingsScreen() {
 
         Spacer(Modifier.height(14.dp))
 
-        // 导入旧日记（低频功能：本地解析入 Room，联网后随同步上传）
+        // 数据：导入 / 备份（低频操作，收成两行小入口）
         Card(
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("📥 导入旧日记", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "把别处记的日记搬进来：选择 .md / .txt / .json 文件，" +
-                        "按日期行（如 # 2026-01-15 或 2026年1月15日）自动分天导入。\n导入到手机本地，联网后自动同步。",
-                    fontSize = 13.sp, color = Ink2, lineHeight = 20.sp,
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                DataRow(
+                    icon = "📥", title = "导入旧日记 / 恢复备份",
+                    subtitle = "支持 .md / .txt / .json（备份 json 可完整恢复）",
+                    onClick = { filePicker.launch(arrayOf("text/*", "application/json", "application/octet-stream")) },
                 )
-                Spacer(Modifier.height(10.dp))
-                OutlinedButton(onClick = { filePicker.launch(arrayOf("text/*", "application/json", "application/octet-stream")) }) {
-                    Text(if (importResult == null) "选择文件并导入" else "再导一个")
-                }
-                if (importing) {
-                    Spacer(Modifier.height(6.dp))
-                    Text("解析导入中…", fontSize = 13.sp, color = Ink3)
-                }
-                importResult?.let { r ->
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        if (r.second.isEmpty()) "✓ 导入 ${r.first.size} 条（${r.first.minOfOrNull { it.entryDate }} ~ ${r.first.maxOfOrNull { it.entryDate }}）"
-                        else "✓ 导入 ${r.first.size} 条，${r.second.size} 段无法识别（无日期行）",
-                        fontSize = 13.sp, color = AccentDark,
-                    )
-                }
-                if (backupMsg.isNotEmpty()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(backupMsg, fontSize = 13.sp, color = if (backupMsg.startsWith("✗")) Danger else AccentDark)
-                }
+                Box(Modifier.fillMaxWidth().height(1.dp).padding(horizontal = 0.dp).background(Line))
+                DataRow(
+                    icon = "📤", title = "导出备份",
+                    subtitle = "全部记录存成一个 json，建议每周一次",
+                    onClick = { backupSaver.launch("未来日记备份-${com.mirainikki.app.data.todayLocal()}.json") },
+                )
             }
         }
-
-        Spacer(Modifier.height(14.dp))
-        Card(
-            shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("💾 备份与恢复", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "「导出备份」把手机里全部记录存成一个 json 文件——存到下载目录、发给自己（微信文件传输助手）或存网盘均可。\n" +
-                        "换手机 / 误删 / 数据丢失时，用上面的「导入」选这个 json 文件即可完整恢复。\n建议每周导出一次。",
-                    fontSize = 13.sp, color = Ink2, lineHeight = 20.sp,
-                )
-                Spacer(Modifier.height(10.dp))
-                OutlinedButton(onClick = {
-                    backupSaver.launch("未来日记备份-${com.mirainikki.app.data.todayLocal()}.json")
-                }) { Text("📤 导出备份（全量 json）") }
-                if (backupMsg.isNotEmpty() && backupMsg.startsWith("✓ 备份")) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(backupMsg, fontSize = 13.sp, color = AccentDark)
-                }
-            }
+        if (importing) {
+            Spacer(Modifier.height(6.dp))
+            Text("解析导入中…", fontSize = 13.sp, color = Ink3, modifier = Modifier.padding(horizontal = 4.dp))
+        }
+        importResult?.let { r ->
+            Spacer(Modifier.height(6.dp))
+            Text(
+                if (r.second.isEmpty()) "✓ 导入 ${r.first.size} 条（${r.first.minOfOrNull { it.entryDate }} ~ ${r.first.maxOfOrNull { it.entryDate }}）"
+                else "✓ 导入 ${r.first.size} 条，${r.second.size} 段无法识别（无日期行）",
+                fontSize = 13.sp, color = AccentDark, modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
+        if (backupMsg.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(backupMsg, fontSize = 13.sp, color = if (backupMsg.startsWith("✗")) Danger else AccentDark,
+                modifier = Modifier.padding(horizontal = 4.dp))
         }
 
         Spacer(Modifier.height(14.dp))
@@ -281,5 +259,25 @@ fun SettingsScreen() {
             }
         }
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** 紧凑设置行：图标 + 标题/副标题，整行可点 */
+@Composable
+private fun DataRow(icon: String, title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 0.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(icon, fontSize = 17.sp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(subtitle, fontSize = 11.5.sp, color = Ink3)
+        }
+        Text("›", fontSize = 16.sp, color = Ink3)
     }
 }
