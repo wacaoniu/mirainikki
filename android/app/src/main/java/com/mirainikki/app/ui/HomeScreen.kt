@@ -69,8 +69,6 @@ fun HomeScreen() {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("📔 未来日记", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(8.dp))
-            Text("随手记，AI 帮你记着呢", fontSize = 12.sp, color = Ink3)
         }
 
         // 快速记一条：不用选类型，想写什么写什么，#标签 自动识别

@@ -29,7 +29,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="logo">📔 未来日记 <span className="logo-sub">随手记，AI 帮你记着呢</span></div>
+        <div className="logo">📔 未来日记</div>
         <nav className="tabs">
           <button className={tab === 'timeline' ? 'on' : ''} onClick={() => setTab('timeline')}>时间线</button>
           <button className={tab === 'stats' ? 'on' : ''} onClick={() => setTab('stats')}>统计</button>
