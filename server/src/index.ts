@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { exec } from 'node:child_process';
-import { UPLOAD_DIR, DATA_DIR, WEB_DIST, IS_EXE } from './paths.js';
+import { UPLOAD_DIR, DATA_DIR, WEB_DIST, IS_EXE, readEmbeddedAsset, hasEmbeddedWeb } from './paths.js';
 import { ftsAvailable } from './db.js';
 import { registerAuth, authHook } from './routes/auth.js';
 import { registerEntries } from './routes/entries.js';
@@ -38,24 +38,37 @@ async function main() {
   const port = parseInt(process.env.PORT || '8787');
   const host = process.env.HOST || '0.0.0.0';
 
-  // 托管网页端构建产物（web/dist），单进程同时提供 API + 网页；SPA 兜底回 index.html
+  // 托管网页端：exe 模式读嵌入资源；开发模式读 web/dist。SPA 兜底回 index.html
   const webDist = WEB_DIST;
-  if (fs.existsSync(path.join(webDist, 'index.html'))) {
+  const embedded = hasEmbeddedWeb();
+  if (embedded || fs.existsSync(path.join(webDist, 'index.html'))) {
     const MIME: Record<string, string> = {
       '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
       '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.woff2': 'font/woff2',
+    };
+    const serveIndex = (reply: any) => {
+      const embeddedIndex = readEmbeddedAsset('index.html');
+      if (embeddedIndex) return reply.header('content-type', MIME['.html']).send(embeddedIndex);
+      return reply.header('content-type', MIME['.html']).send(fs.readFileSync(path.join(webDist, 'index.html')));
     };
     app.setNotFoundHandler(async (req, reply) => {
       const url = decodeURIComponent(req.url.split('?')[0]);
       if (url.startsWith('/api/') || url.startsWith('/uploads/')) return reply.code(404).send({ error: 'Not Found' });
       const rel = path.normalize(url).replace(/^([/\\]+)*/, '') || 'index.html';
+      if (embedded) {
+        const asset = readEmbeddedAsset(rel);
+        if (asset) return reply.header('content-type', MIME[path.extname(rel)] || 'application/octet-stream').send(asset);
+        return serveIndex(reply);
+      }
       const file = path.join(webDist, rel);
       if (file.startsWith(webDist) && fs.existsSync(file) && fs.statSync(file).isFile()) {
         return reply.header('content-type', MIME[path.extname(file)] || 'application/octet-stream').send(fs.readFileSync(file));
       }
-      return reply.header('content-type', 'text/html; charset=utf-8').send(fs.readFileSync(path.join(webDist, 'index.html')));
+      return serveIndex(reply);
     });
-    app.log.info(`网页端：${webDist}`);
+    app.log.info(embedded ? '网页端：已嵌入 exe 内' : `网页端：${webDist}`);
+  } else if (IS_EXE) {
+    app.log.warn('未找到网页资源（既无嵌入也无 web/dist）—— 将只能通过 API 访问');
   }
 
   await app.listen({ port, host });
