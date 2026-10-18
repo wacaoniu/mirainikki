@@ -5,7 +5,12 @@
 
 这个 App 分两块：
   · 手机（MiraiNikki.apk）—— 用来记录，数据先存在手机里
-  · 电脑（就是本文件夹）—— 用来回看、统计、生成 AI 档案
+  · 电脑（未来日记.exe）—— 用来回看、统计、生成 AI 档案
+
+没有这个文件夹？去 GitHub 下载页获取：
+  https://github.com/wacaoniu/mirainikki/releases
+  · 电脑用：MiraiNikki-PC.zip（解压出 未来日记.exe）
+  · 手机用：MiraiNikki.apk
 
 手机和电脑连上之后会自动同步：手机记的东西，电脑上就能看到。
 
