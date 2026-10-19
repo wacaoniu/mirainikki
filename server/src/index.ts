@@ -54,10 +54,12 @@ async function main() {
     app.setNotFoundHandler(async (req, reply) => {
       const url = decodeURIComponent(req.url.split('?')[0]);
       if (url.startsWith('/api/') || url.startsWith('/uploads/')) return reply.code(404).send({ error: 'Not Found' });
-      const rel = path.normalize(url).replace(/^([/\\]+)*/, '') || 'index.html';
+      const rel = path.normalize(url).replace(/^([/\\]+)*/, '').replace(/\\+/g, '/') || 'index.html';
       if (embedded) {
         const asset = readEmbeddedAsset(rel);
         if (asset) return reply.header('content-type', MIME[path.extname(rel)] || 'application/octet-stream').send(asset);
+        // SPA 路由（无扩展名）回 index.html；带扩展名的资源缺失就 404，绝不把 HTML 冒充 JS/CSS
+        if (path.extname(rel)) return reply.code(404).send({ error: 'Not Found' });
         return serveIndex(reply);
       }
       const file = path.join(webDist, rel);
