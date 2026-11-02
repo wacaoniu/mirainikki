@@ -53,7 +53,7 @@ fun SettingsScreen() {
     val scope = rememberCoroutineScope()
 
     var serverUrl by remember { mutableStateOf(repo.api.serverUrl) }
-    var password by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf(repo.api.savedPassword) }
     var msg by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var syncing by remember { mutableStateOf(false) }
@@ -224,7 +224,7 @@ fun SettingsScreen() {
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("密码") },
+                    label = { Text(if (repo.api.savedPassword.isNotEmpty()) "密码（已记住，可直接连接）" else "密码") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -238,8 +238,9 @@ fun SettingsScreen() {
                                     repo.api.serverUrl = serverUrl.trim().trimEnd('/')
                                     val token = repo.api.login(password)
                                     repo.api.token = token
+                                    repo.api.savedPassword = password   // 记住密码，以后免输入、token 失效自动重登
                                     SyncWorker.schedule(ctx)
-                                    withContext(Dispatchers.Main) { msg = "✓ 连接成功，已开启自动同步" }
+                                    withContext(Dispatchers.Main) { msg = "✓ 连接成功，已开启自动同步（密码已记住）" }
                                 } catch (e: Exception) {
                                     withContext(Dispatchers.Main) { msg = "✗ ${e.message}" }
                                 } finally {

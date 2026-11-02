@@ -26,6 +26,11 @@ class Api(private val ctx: Context) {
         get() = prefs.getString("token", "") ?: ""
         set(v) = prefs.edit().putString("token", v).apply()
 
+    /** 保存的密码：连接成功后记住，token 失效时用它静默重登，用户无需再输 */
+    var savedPassword: String
+        get() = prefs.getString("password", "") ?: ""
+        set(v) = prefs.edit().putString("password", v).apply()
+
     var lastPull: String
         get() = prefs.getString("last_pull", "1970-01-01T00:00:00.000Z") ?: "1970-01-01T00:00:00.000Z"
         set(v) = prefs.edit().putString("last_pull", v).apply()
@@ -40,7 +45,7 @@ class Api(private val ctx: Context) {
 
     class ApiException(val code: Int, message: String) : Exception(message)
 
-    private fun request(method: String, path: String, body: String? = null): String {
+    private fun request(method: String, path: String, body: String? = null, allowRelogin: Boolean = true): String {
         val rb = body?.toRequestBody("application/json; charset=utf-8".toMediaType())
         val req = Request.Builder()
             .url(serverUrl + path)
@@ -50,6 +55,10 @@ class Api(private val ctx: Context) {
         http.newCall(req).execute().use { resp ->
             val text = resp.body?.string() ?: ""
             if (!resp.isSuccessful) {
+                // token 过期/失效：用保存的密码静默重登一次再重试（用户无感）
+                if (resp.code == 401 && allowRelogin && savedPassword.isNotEmpty() && tryRelogin()) {
+                    return request(method, path, body, allowRelogin = false)
+                }
                 val msg = try {
                     (json.parseToJsonElement(text) as? JsonObject)?.get("error")?.toString()?.trim('"')
                 } catch (_: Exception) { null } ?: "HTTP ${resp.code}"
@@ -59,8 +68,15 @@ class Api(private val ctx: Context) {
         }
     }
 
-    fun login(password: String): String {
-        val resp = request("POST", "/api/auth/login", """{"password":"${password.replace("\"", "\\\"")}"}""")
+    private fun tryRelogin(): Boolean = runCatching {
+        token = loginRaw(savedPassword)
+        true
+    }.getOrDefault(false)
+
+    fun login(password: String): String = loginRaw(password)
+
+    private fun loginRaw(password: String): String {
+        val resp = request("POST", "/api/auth/login", """{"password":"${password.replace("\"", "\\\"")}"}""", allowRelogin = false)
         return json.parseToJsonElement(resp).let { (it as JsonObject)["token"]!!.toString().trim('"') }
     }
 
