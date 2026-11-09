@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,10 +34,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
@@ -65,8 +70,13 @@ fun ShareSheet(req: ShareRequest, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
     val repo = remember { Repo.get(ctx) }
     val scope = rememberCoroutineScope()
-    val plain = remember { buildShareText(req) }
-    val md = remember { buildShareMarkdown(req) }
+    // 尾巴开关 + 自定义：随改随存，预览实时更新
+    var tailOn by remember { mutableStateOf(repo.api.shareTailOn) }
+    var tailCustom by remember { mutableStateOf(repo.api.shareTailText) }
+    var editingTail by remember { mutableStateOf(false) }
+    val tail = remember(tailOn, tailCustom) { resolvedTail(tailOn, tailCustom) }
+    val plain = remember(req, tail) { buildShareText(req, tail) }
+    val md = remember(req, tail) { buildShareMarkdown(req, tail) }
     val title = when (req) {
         is ShareRequest.Day -> "分享 ${friendlyDate(req.date)} 的日记"
         is ShareRequest.Single -> "分享这条记录"
@@ -111,6 +121,81 @@ fun ShareSheet(req: ShareRequest, onDismiss: () -> Unit) {
                             .verticalScroll(rememberScrollState()),
                     )
                 }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // 尾巴：开关 + 自定义，随改随存
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(
+                    checked = tailOn,
+                    onCheckedChange = {
+                        tailOn = it
+                        repo.api.shareTailOn = it
+                    },
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clickable {
+                            if (tailOn) {
+                                editingTail = !editingTail
+                            } else {
+                                tailOn = true
+                                repo.api.shareTailOn = true
+                                editingTail = true
+                            }
+                        },
+                ) {
+                    Text("分享尾巴", fontSize = 13.5.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        when {
+                            !tailOn -> "已关闭，分享时不带尾巴"
+                            tailCustom.isBlank() -> DEFAULT_SHARE_TAIL
+                            else -> tailCustom.trim()
+                        },
+                        fontSize = 12.sp, color = Ink3, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (tailOn) {
+                    Text(
+                        if (editingTail) "收起" else "自定义",
+                        fontSize = 12.5.sp, color = AccentDark,
+                        modifier = Modifier
+                            .clickable { editingTail = !editingTail }
+                            .padding(start = 8.dp, top = 4.dp, bottom = 4.dp),
+                    )
+                }
+            }
+            if (editingTail && tailOn) {
+                Spacer(Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = tailCustom,
+                    onValueChange = {
+                        tailCustom = it
+                        repo.api.shareTailText = it
+                    },
+                    label = { Text("尾巴文案") },
+                    placeholder = { Text(DEFAULT_SHARE_TAIL) },
+                    singleLine = true,
+                    trailingIcon = {
+                        if (tailCustom.isNotEmpty()) {
+                            Text(
+                                "✕", fontSize = 14.sp, color = Ink3,
+                                modifier = Modifier
+                                    .clickable {
+                                        tailCustom = ""
+                                        repo.api.shareTailText = ""
+                                    }
+                                    .padding(horizontal = 12.dp),
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(2.dp))
+                Text("留空则用默认文案，上面的预览会实时更新", fontSize = 11.sp, color = Ink3)
             }
 
             Spacer(Modifier.height(14.dp))
@@ -286,7 +371,14 @@ private fun reqEntries(req: ShareRequest): List<EntryEntity> = when (req) {
     is ShareRequest.Single -> listOf(req.entry)
 }
 
-fun buildShareText(req: ShareRequest): String {
+/** 默认尾巴文案；用户在分享面板里可关闭或改成自己的话 */
+const val DEFAULT_SHARE_TAIL = "—— 来自「未来日记」"
+
+/** 解析出实际要附加的尾巴：null 表示不附加 */
+private fun resolvedTail(on: Boolean, custom: String): String? =
+    if (!on) null else custom.trim().ifEmpty { DEFAULT_SHARE_TAIL }
+
+fun buildShareText(req: ShareRequest, tail: String?): String {
     val sb = StringBuilder()
     if (req is ShareRequest.Day) {
         sb.append("📔 ${fullDate(req.date)}\n\n")
@@ -297,11 +389,11 @@ fun buildShareText(req: ShareRequest): String {
         for (line in body) sb.append("　").append(line).append('\n')
         sb.append('\n')
     }
-    sb.append("—— 来自「未来日记」")
+    if (tail != null) sb.append(tail)
     return sb.toString().trimEnd('\n').replace("\n\n\n", "\n\n")
 }
 
-fun buildShareMarkdown(req: ShareRequest): String {
+fun buildShareMarkdown(req: ShareRequest, tail: String?): String {
     val sb = StringBuilder()
     if (req is ShareRequest.Day) {
         sb.append("# ${fullDate(req.date)}\n\n")
@@ -312,6 +404,6 @@ fun buildShareMarkdown(req: ShareRequest): String {
         sb.append("- ").append(head).append('\n')
         for (line in body) sb.append("  ").append(line).append('\n')
     }
-    sb.append("\n*—— 来自「未来日记」*")
+    if (tail != null) sb.append("\n*$tail*")
     return sb.toString()
 }

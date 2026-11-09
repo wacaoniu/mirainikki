@@ -31,6 +31,16 @@ class Api(private val ctx: Context) {
         get() = prefs.getString("password", "") ?: ""
         set(v) = prefs.edit().putString("password", v).apply()
 
+    /** 分享尾巴：是否附加在分享文本末尾（默认附加） */
+    var shareTailOn: Boolean
+        get() = prefs.getBoolean("share_tail_on", true)
+        set(v) = prefs.edit().putBoolean("share_tail_on", v).apply()
+
+    /** 分享尾巴自定义文本；留空则用默认文案 */
+    var shareTailText: String
+        get() = prefs.getString("share_tail_text", "") ?: ""
+        set(v) = prefs.edit().putString("share_tail_text", v).apply()
+
     var lastPull: String
         get() = prefs.getString("last_pull", "1970-01-01T00:00:00.000Z") ?: "1970-01-01T00:00:00.000Z"
         set(v) = prefs.edit().putString("last_pull", v).apply()
